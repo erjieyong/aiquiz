@@ -29,12 +29,14 @@ def click_submit():
     disable()
 
 
-def update_or_insert_doc(collection, group, url):
+def update_or_insert_doc(collection, group, url, prompt):
     """update document if group is in collection, otherwise, insert new document"""
     if collection.find_one({"group": group}):
-        collection.update_one({"group": group}, {"$set": {"url": url}})
+        collection.update_one(
+            {"group": group}, {"$set": {"url": url, "prompt": prompt}}
+        )
     else:
-        collection.insert_one({"group": group, "url": url})
+        collection.insert_one({"group": group, "url": url, "prompt": prompt})
 
 
 def check_document():
@@ -84,7 +86,9 @@ if st.session_state["game_state"] == "0":
         db = MONGO_CLIENT["aiquiz"]
         collection = db["image_submission"]
 
-        update_or_insert_doc(collection, group_name, st.session_state["url"])
+        update_or_insert_doc(
+            collection, group_name, st.session_state["url"], user_prompt
+        )
 
         st.success("Image submitted!")
 
@@ -116,3 +120,5 @@ if st.session_state["game_state"] == "0":
     # asyncio.run(monitor_changes())
 elif st.session_state["game_state"] == "1":
     st.write("quiz page")
+
+    # TODO display quiz
