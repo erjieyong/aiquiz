@@ -29,12 +29,14 @@ def click_submit(button):
 
 def update_or_insert_image(round, group, url, prompt):
     """update document if group is in collection, otherwise, insert new document"""
-    if COLLECTION_IMAGE_SUBMISSION.find_one({"round":round, "group": group}):
+    if COLLECTION_IMAGE_SUBMISSION.find_one({"round": round, "group": group}):
         COLLECTION_IMAGE_SUBMISSION.update_one(
-            {"round":round, "group": group}, {"$set": {"url": url, "prompt": prompt}}
+            {"round": round, "group": group}, {"$set": {"url": url, "prompt": prompt}}
         )
     else:
-        COLLECTION_IMAGE_SUBMISSION.insert_one({"round", round, "group": group, "url": url, "prompt": prompt})
+        COLLECTION_IMAGE_SUBMISSION.insert_one(
+            {"round": round, "group": group, "url": url, "prompt": prompt}
+        )
 
 
 def submit_score(round, group, score):
