@@ -7,7 +7,7 @@ from pymongo import MongoClient
 import pandas as pd
 
 load_dotenv()
-MONGO_CLIENT = MongoClient("mongodb://localhost:27017/")
+MONGO_CLIENT = MongoClient("mongo:27017")
 DATABASE = MONGO_CLIENT["aiquiz"]
 COLLECTION_IMAGE_SUBMISSION = DATABASE["image_submission"]
 COLLECTION_GAMESTATE = DATABASE["game_state"]
@@ -15,12 +15,19 @@ COLLECTION_QUIZ = DATABASE["quiz"]
 COLLECTION_QUIZ_SUBMISSION = DATABASE["quiz_submission"]
 OPENAI_CLIENT = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-st.session_state["round"] = COLLECTION_GAMESTATE.find_one({"round": {"$exists": True}})[
-    "round"
-]
+try:
+    st.session_state["round"] = COLLECTION_GAMESTATE.find_one(
+        {"round": {"$exists": True}}
+    )["round"]
+except:
+    COLLECTION_GAMESTATE.insert_one({"round": 1})
+    COLLECTION_GAMESTATE.insert_one({"state": "image_submission_stage"})
+    st.session_state["round"] = 1
 
 if "game_state" not in st.session_state:
-    st.session_state["game_state"] = COLLECTION_GAMESTATE.find_one()["state"]
+    st.session_state["game_state"] = COLLECTION_GAMESTATE.find_one(
+        {"state": {"$exists": True}}
+    )["state"]
     st.session_state["generation"] = False
 
 
@@ -149,7 +156,9 @@ st.divider()
 st.subheader("All Submissions")
 col1, col2, col3 = st.columns(3)
 
-all_submissions = list(COLLECTION_IMAGE_SUBMISSION.find())
+all_submissions = list(
+    COLLECTION_IMAGE_SUBMISSION.find({"round": st.session_state.round})
+)
 
 for id, submission in enumerate(all_submissions):
     if (id + 1) % 3 == 1:
@@ -230,5 +239,5 @@ if st.button(
 
 st.session_state
 
-# TODO: real time update of how many teams and which team has submitted.
+# TODO: real time update of how many teams and which team has submitted image, which team has sent answers
 # TODO: current score may need to take into account the timing

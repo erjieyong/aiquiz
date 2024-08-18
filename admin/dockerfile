@@ -1,0 +1,17 @@
+# docker build -f admin/Dockerfile -t aiquiz:admin .
+
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+
+RUN pip3 install -r requirements.txt
+
+COPY admin/admin.py .
+COPY .env .
+
+EXPOSE 8502
+
+ENTRYPOINT ["streamlit", "run", "admin.py", "--server.port=8502", "--server.address=0.0.0.0"]

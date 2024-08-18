@@ -10,7 +10,7 @@ import time
 import asyncio
 
 load_dotenv()
-MONGO_CLIENT = MongoClient("mongodb://localhost:27017/")
+MONGO_CLIENT = MongoClient("mongo:27017")
 DATABASE = MONGO_CLIENT["aiquiz"]
 COLLECTION_IMAGE_SUBMISSION = DATABASE["image_submission"]
 COLLECTION_GAMESTATE = DATABASE["game_state"]
@@ -134,7 +134,7 @@ else:
 
         if st.session_state.submitted:
             update_or_insert_image(
-                COLLECTION_IMAGE_SUBMISSION,
+                st.session_state.round,
                 st.session_state.group,
                 st.session_state.url,
                 user_prompt,
@@ -158,9 +158,8 @@ else:
             st.session_state.quiz["syn_prompt2"],
             st.session_state.quiz["syn_prompt3"],
         ]
-        random.shuffle(quiz_prompts)
-        if "randomised_quiz_prompts" not in st.session_state:
-            st.session_state.randomised_quiz_prompts = quiz_prompts
+        random.Random(1).shuffle(quiz_prompts)
+        st.session_state.randomised_quiz_prompts = quiz_prompts
 
         # st.write(f"Group name: {st.session_state.group}")
         # if st.session_state.group == "":
