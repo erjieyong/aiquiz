@@ -27,14 +27,14 @@ def click_submit(button):
         st.session_state.disable_submit_quiz = True
 
 
-def update_or_insert_doc(collection, group, url, prompt):
+def update_or_insert_image(round, group, url, prompt):
     """update document if group is in collection, otherwise, insert new document"""
-    if collection.find_one({"group": group}):
-        collection.update_one(
-            {"group": group}, {"$set": {"url": url, "prompt": prompt}}
+    if COLLECTION_IMAGE_SUBMISSION.find_one({"round":round, "group": group}):
+        COLLECTION_IMAGE_SUBMISSION.update_one(
+            {"round":round, "group": group}, {"$set": {"url": url, "prompt": prompt}}
         )
     else:
-        collection.insert_one({"group": group, "url": url, "prompt": prompt})
+        COLLECTION_IMAGE_SUBMISSION.insert_one({"round", round, "group": group, "url": url, "prompt": prompt})
 
 
 def submit_score(round, group, score):
@@ -95,7 +95,7 @@ if st.session_state.group == None:
 else:
     st.header(f"{st.session_state.group}: Round {st.session_state.round}")
 
-    if st.session_state.game_state == "0":
+    if st.session_state.game_state == "image_submission_stage":
         # User prompt input
         with st.form("my_form"):
             user_prompt = st.text_input("Enter your prompt:", key="prompt")
@@ -131,7 +131,7 @@ else:
             )
 
         if st.session_state.submitted:
-            update_or_insert_doc(
+            update_or_insert_image(
                 COLLECTION_IMAGE_SUBMISSION,
                 st.session_state.group,
                 st.session_state.url,
@@ -142,7 +142,7 @@ else:
 
             check_game_state()
 
-    if st.session_state.game_state == "1":
+    if st.session_state.game_state == "quiz_round_stage":
 
         st.session_state.round = COLLECTION_GAMESTATE.find_one(
             {"round": {"$exists": True}}
@@ -193,7 +193,7 @@ else:
 
             check_game_state()
 
-    if st.session_state.game_state == "2":
+    if st.session_state.game_state == "end_quiz_round_stage":
 
         st.subheader("Leaderboard")
         df = list(COLLECTION_QUIZ_SUBMISSION.find())
@@ -204,9 +204,7 @@ else:
 
 st.session_state
 
-# TODO: ensure that the group name remains across 2 gamestate and user don't need to refresh
-# TODO: after submit answer, we need to reset a few things such as the buttom submission
-# TODO: at end quiz stage, display the current score
+# TODO: count score base on time
 
 # # Async function to check document value
 # async def check_document():

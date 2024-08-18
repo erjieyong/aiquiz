@@ -25,20 +25,24 @@ if "game_state" not in st.session_state:
 
 
 def update_gamestate(gamestate):
-    if COLLECTION_GAMESTATE.find_one({"state": {"$regex": "\d"}}):
+    # "image_submission_stage",
+    # "quiz_round_stage",
+    # "end_quiz_round_stage",
+    if COLLECTION_GAMESTATE.find_one({"state": {"$exists": True}}):
         COLLECTION_GAMESTATE.update_one(
-            {"state": {"$regex": "\d"}}, {"$set": {"state": gamestate}}
+            {"state": {"$exists": True}}, {"$set": {"state": gamestate}}
         )
     else:
         COLLECTION_GAMESTATE.insert_one({"state": gamestate})
 
     st.session_state["game_state"] = gamestate
 
-    if gamestate == "0":
+    if gamestate == "image_submission_stage":
         st.session_state["generation"] = False
 
 
 def update_gameround(gameround):
+    # game round represent the number of rounds that the game has been played
     if COLLECTION_GAMESTATE.find_one({"round": {"$exists": True}}):
         COLLECTION_GAMESTATE.update_one(
             {"round": {"$exists": True}}, {"$set": {"round": gameround}}
@@ -49,7 +53,8 @@ def update_gameround(gameround):
     st.session_state["round"] = gameround
 
 
-def update_quiz(round, group, image, og_prompt, syn_prompt1, syn_prompt2, syn_prompt3):
+def create_quiz(round, group, image, og_prompt, syn_prompt1, syn_prompt2, syn_prompt3):
+    print(group, image)
     if COLLECTION_QUIZ.find_one({"round": round}):
         COLLECTION_QUIZ.update_one(
             {"round": round},
@@ -115,25 +120,26 @@ Return only the final JSON dictionary. Do not return any other output descriptio
     return json.loads(response.choices[0].message.content)
 
 
+def reset_everything():
+    COLLECTION_IMAGE_SUBMISSION.delete_many({})
+    COLLECTION_GAMESTATE.delete_many({})
+    COLLECTION_QUIZ.delete_many({})
+    COLLECTION_QUIZ_SUBMISSION.delete_many({})
+    update_gamestate("image_submission_stage")
+    update_gameround(1)
+
+
 st.title("AI Quiz Admin Panel")
 
-st.subheader("Set Game State")
-# 0: image submission
-# 1: quiz time
-# 2: end quiz and show result
-gamestate_dic = {
-    "0": "Image Submission Stage",
-    "1": "Quiz Stage",
-    "2": "End Quiz Stage",
-}
-
-
-current_gamestate = st.empty()
+st.subheader("Game State")
+st.success(
+    f"Round {st.session_state['round']} Game State: {st.session_state['game_state']}"
+)
 
 st.button(
     "Image Submission Stage",
     on_click=update_gamestate,
-    kwargs={"gamestate": "0"},
+    kwargs={"gamestate": "image_submission_stage"},
     use_container_width=True,
 )
 
@@ -169,53 +175,60 @@ if st.button(
     disabled=st.session_state["generation"],
     use_container_width=True,
 ):
-    # Generate 3 more synthetic prompts
-    generated_prompts = generate_3_prompts(
-        all_submissions[selected_group - 1]["url"],
-        all_submissions[selected_group - 1]["prompt"],
-    )
+    if selected_group:
+        # Generate 3 more synthetic prompts
+        generated_prompts = generate_3_prompts(
+            all_submissions[selected_group - 1]["url"],
+            all_submissions[selected_group - 1]["prompt"],
+        )
 
-    # push selected image, og prompts and 3 synthetic prompts to db
-    update_quiz(
-        st.session_state["round"],
-        all_submissions[selected_group - 1]["group"],
-        all_submissions[selected_group - 1]["url"],
-        all_submissions[selected_group - 1]["prompt"],
-        generated_prompts["prompt1"],
-        generated_prompts["prompt2"],
-        generated_prompts["prompt3"],
-    )
+        # push selected image, og prompts and 3 synthetic prompts to db
+        create_quiz(
+            st.session_state["round"],
+            all_submissions[selected_group - 1]["group"],
+            all_submissions[selected_group - 1]["url"],
+            all_submissions[selected_group - 1]["prompt"],
+            generated_prompts["prompt1"],
+            generated_prompts["prompt2"],
+            generated_prompts["prompt3"],
+        )
 
-    # change game state to quiz stage
-    update_gamestate(gamestate="1")
-
-current_gamestate.success(
-    f"Round {st.session_state['round']} Game State: {gamestate_dic[st.session_state['game_state']]}"
-)
+        # change game state to quiz stage
+        update_gamestate(gamestate="quiz_round_stage")
+    else:
+        st.warning("Please wait for at least a group to submit their image.")
 
 st.divider()
 
 st.subheader("SCORE")
 df = list(COLLECTION_QUIZ_SUBMISSION.find())
-st.bar_chart(pd.DataFrame(df).groupby(["group"]).sum("score")[["score"]])
+if df:
+    st.bar_chart(pd.DataFrame(df).groupby(["group"]).sum("score")[["score"]])
 
 st.button(
     "End Quiz Stage",
     on_click=update_gamestate,
-    kwargs={"gamestate": "2"},
+    kwargs={"gamestate": "end_quiz_round_stage"},
     use_container_width=True,
 )
 
 if st.button(
     "Start New Round",
     on_click=update_gamestate,
-    kwargs={"gamestate": "0"},
+    kwargs={"gamestate": "image_submission_stage"},
     use_container_width=True,
 ):
     update_gameround(st.session_state.round + 1)
 
+if st.button(
+    "RESET EVERYTHING!",
+    use_container_width=True,
+    type="primary",
+):
+    reset_everything()
+    st.rerun()
 
-# TODO: tally results for all group
-# TODO: end quiz and increase round by 1
+st.session_state
+
 # TODO: real time update of how many teams and which team has submitted.
 # TODO: current score may need to take into account the timing
