@@ -2,6 +2,7 @@ import streamlit as st
 from dotenv import load_dotenv
 from openai import OpenAI
 import os
+import pandas as pd
 from pymongo import MongoClient
 import random
 import time
@@ -16,23 +17,6 @@ COLLECTION_GAMESTATE = DATABASE["game_state"]
 COLLECTION_QUIZ = DATABASE["quiz"]
 COLLECTION_QUIZ_SUBMISSION = DATABASE["quiz_submission"]
 OPENAI_CLIENT = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-
-if "url" not in st.session_state:
-    st.session_state["url"] = None
-    st.session_state["disable_generate"] = False
-    st.session_state["submitted"] = False
-    st.session_state["game_state"] = COLLECTION_GAMESTATE.find_one(
-        {"state": {"$exists": True}}
-    )["state"]
-    st.session_state.round = COLLECTION_GAMESTATE.find_one(
-        {"round": {"$exists": True}}
-    )["round"]
-    st.session_state.disable_submit_quiz = False
-    st.session_state.group = ""
-
-st.title("AI Quiz Image Generator")
-st.header(f"Round {st.session_state.round}")
 
 
 def click_submit(button):
@@ -74,10 +58,10 @@ def check_game_state():
 
 
 def reset_round():
-    st.session_state["url"] = None
-    st.session_state["disable_generate"] = False
-    st.session_state["submitted"] = False
-    st.session_state["game_state"] = COLLECTION_GAMESTATE.find_one(
+    st.session_state.url = None
+    st.session_state.disable_generate = False
+    st.session_state.submitted = False
+    st.session_state.game_state = COLLECTION_GAMESTATE.find_one(
         {"state": {"$exists": True}}
     )["state"]
     st.session_state.disable_submit_quiz = False
@@ -86,113 +70,137 @@ def reset_round():
     )["round"]
 
 
-if st.session_state["game_state"] == "0":
-    # User prompt input
-    with st.form("my_form"):
-        group_name = st.text_input("Group Name:")
-        st.session_state.group = group_name
-        user_prompt = st.text_input("Enter your prompt:")
-        generate = st.form_submit_button(
-            "Generate Image", disabled=st.session_state.disable_generate
-        )
+st.session_state.round = COLLECTION_GAMESTATE.find_one({"round": {"$exists": True}})[
+    "round"
+]
 
-    # Generate button
-    if generate:
-        if not user_prompt:
-            st.warning("Please enter a prompt.")
-        else:
-            with st.spinner(text="Generating image..."):
-                response = OPENAI_CLIENT.images.generate(
-                    model="dall-e-2",
-                    prompt=user_prompt,
-                    size="256x256",
-                    quality="standard",
-                    n=1,
-                )
-                try:
-                    st.session_state["url"] = response.data[0].url
-                except:
-                    st.error("Error generating image. Please try again.")
+if "url" not in st.session_state:
+    st.session_state.url = None
+    st.session_state.disable_generate = False
+    st.session_state.submitted = False
+    st.session_state.game_state = COLLECTION_GAMESTATE.find_one(
+        {"state": {"$exists": True}}
+    )["state"]
+    st.session_state.disable_submit_quiz = False
 
-    if st.session_state["url"]:
-        st.image(st.session_state["url"])
-        st.button(
-            "Submit to Game Master",
-            on_click=click_submit,
-            args=("gamemaster",),
-            disabled=st.session_state.disable_generate,
-        )
+if "group" not in st.session_state:
+    st.session_state.group = None
 
-    if st.session_state.submitted:
-        update_or_insert_doc(
-            COLLECTION_IMAGE_SUBMISSION,
-            group_name,
-            st.session_state["url"],
-            user_prompt,
-        )
+st.title("AI Quiz")
+if st.session_state.group == None:
+    groupname = st.text_input("Group Name:")
+    if groupname:
+        st.session_state.group = groupname
+        st.rerun()
+else:
+    st.header(f"{st.session_state.group}: Round {st.session_state.round}")
 
-        st.success("Image submitted!")
-
-        check_game_state()
-
-
-if st.session_state["game_state"] == "1":
-
-    st.session_state.round = COLLECTION_GAMESTATE.find_one(
-        {"round": {"$exists": True}}
-    )["round"]
-    st.session_state.quiz = COLLECTION_QUIZ.find_one({"round": st.session_state.round})
-    quiz_prompts = [
-        st.session_state.quiz["og_prompt"],
-        st.session_state.quiz["syn_prompt1"],
-        st.session_state.quiz["syn_prompt2"],
-        st.session_state.quiz["syn_prompt3"],
-    ]
-    random.shuffle(quiz_prompts)
-    if "randomised_quiz_prompts" not in st.session_state:
-        st.session_state.randomised_quiz_prompts = quiz_prompts
-
-    # st.write(f"Group name: {st.session_state.group}")
-    if st.session_state.group == "":
-        group_name = st.text_input("Group Name:")
-        st.session_state.group = group_name
-
-    # st.subheader(f"{st.session_state.group} Round {st.session_state.round}")
-
-    col1, col2, col3 = st.columns(3)
-    col2.image(st.session_state.quiz["url"])
-
-    selected_answer = st.radio(
-        "Which of the following prompt is the original prompt that was used to generate the image?",
-        st.session_state.randomised_quiz_prompts,
-        disabled=st.session_state.disable_submit_quiz,
-    )
-
-    if st.button(
-        "Submit answer!",
-        on_click=click_submit,
-        args=("submit_quiz",),
-        disabled=st.session_state.disable_submit_quiz,
-    ):
-        if selected_answer == st.session_state.quiz["og_prompt"]:
-            st.success("Congratulations! You are correct!")
-            submit_score(st.session_state.round, st.session_state.group, 1)
-        else:
-            st.error(
-                f"Wrong! '**{st.session_state.quiz['og_prompt']}**' is the correct answer."
+    if st.session_state.game_state == "0":
+        # User prompt input
+        with st.form("my_form"):
+            user_prompt = st.text_input("Enter your prompt:", key="prompt")
+            generate = st.form_submit_button(
+                "Generate Image", disabled=st.session_state.disable_generate
             )
-            submit_score(st.session_state.round, st.session_state.group, 0)
 
+        # Generate button
+        if generate:
+            if not user_prompt:
+                st.warning("Please enter a prompt.")
+            else:
+                with st.spinner(text="Generating image..."):
+                    response = OPENAI_CLIENT.images.generate(
+                        model="dall-e-2",
+                        prompt=user_prompt,
+                        size="256x256",
+                        quality="standard",
+                        n=1,
+                    )
+                    try:
+                        st.session_state.url = response.data[0].url
+                    except:
+                        st.error("Error generating image. Please try again.")
+
+        if st.session_state.url:
+            st.image(st.session_state.url)
+            st.button(
+                "Submit to Game Master",
+                on_click=click_submit,
+                args=("gamemaster",),
+                disabled=st.session_state.disable_generate,
+            )
+
+        if st.session_state.submitted:
+            update_or_insert_doc(
+                COLLECTION_IMAGE_SUBMISSION,
+                st.session_state.group,
+                st.session_state.url,
+                user_prompt,
+            )
+
+            st.success("Image submitted!")
+
+            check_game_state()
+
+    if st.session_state.game_state == "1":
+
+        st.session_state.round = COLLECTION_GAMESTATE.find_one(
+            {"round": {"$exists": True}}
+        )["round"]
+        st.session_state.quiz = COLLECTION_QUIZ.find_one(
+            {"round": st.session_state.round}
+        )
+        quiz_prompts = [
+            st.session_state.quiz["og_prompt"],
+            st.session_state.quiz["syn_prompt1"],
+            st.session_state.quiz["syn_prompt2"],
+            st.session_state.quiz["syn_prompt3"],
+        ]
+        random.shuffle(quiz_prompts)
+        if "randomised_quiz_prompts" not in st.session_state:
+            st.session_state.randomised_quiz_prompts = quiz_prompts
+
+        # st.write(f"Group name: {st.session_state.group}")
+        # if st.session_state.group == "":
+        #     group_name = st.text_input("Group Name:")
+        #     st.session_state.group = group_name
+
+        # st.subheader(f"{st.session_state.group} Round {st.session_state.round}")
+
+        col1, col2, col3 = st.columns(3)
+        col2.image(st.session_state.quiz["url"])
+
+        selected_answer = st.radio(
+            "Which of the following prompt is the original prompt that was used to generate the image?",
+            st.session_state.randomised_quiz_prompts,
+            disabled=st.session_state.disable_submit_quiz,
+        )
+
+        if st.button(
+            "Submit answer!",
+            on_click=click_submit,
+            args=("submit_quiz",),
+            disabled=st.session_state.disable_submit_quiz,
+        ):
+            if selected_answer == st.session_state.quiz["og_prompt"]:
+                st.success("Congratulations! You are correct!")
+                submit_score(st.session_state.round, st.session_state.group, 1)
+            else:
+                st.error(
+                    f"Wrong! '**{st.session_state.quiz['og_prompt']}**' is the correct answer."
+                )
+                submit_score(st.session_state.round, st.session_state.group, 0)
+
+            check_game_state()
+
+    if st.session_state.game_state == "2":
+
+        st.subheader("Leaderboard")
+        df = list(COLLECTION_QUIZ_SUBMISSION.find())
+        st.bar_chart(pd.DataFrame(df).groupby(["group"]).sum("score")[["score"]])
+
+        reset_round()
         check_game_state()
-
-if st.session_state["game_state"] == "2":
-    reset_round()
-
-    st.subheader("Leaderboard")
-    for document in COLLECTION_QUIZ_SUBMISSION.find():
-        st.write(document)
-
-    check_game_state()
 
 st.session_state
 
@@ -205,11 +213,10 @@ st.session_state
 #     doc = COLLECTION_GAMESTATE.find_one({"state": {"$exists": True}})
 #     return doc["state"]
 
-
 # # Define an async function to periodically check for updates
 # async def monitor_changes():
 #     current_value = await check_document()
-#     st.session_state["game_state"] = current_value
+#     st.session_state.game_state = current_value
 #     # document_value.write(f"Current Value: {current_value}")
 
 #     while True:
@@ -217,11 +224,10 @@ st.session_state
 #         new_value = await check_document()
 #         if new_value != current_value:
 #             current_value = new_value
-#             st.session_state["game_state"] = current_value
+#             st.session_state.game_state = current_value
 #             print(current_value)
 
 #     # document_value.write(f"Updated Value: {current_value}")
-
 
 # # Run the async function in the background
 # asyncio.run(monitor_changes())

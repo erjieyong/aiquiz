@@ -15,10 +15,13 @@ COLLECTION_QUIZ = DATABASE["quiz"]
 COLLECTION_QUIZ_SUBMISSION = DATABASE["quiz_submission"]
 OPENAI_CLIENT = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+st.session_state["round"] = COLLECTION_GAMESTATE.find_one({"round": {"$exists": True}})[
+    "round"
+]
+
 if "game_state" not in st.session_state:
     st.session_state["game_state"] = COLLECTION_GAMESTATE.find_one()["state"]
     st.session_state["generation"] = False
-    st.session_state["round"] = 1
 
 
 def update_gamestate(gamestate):
