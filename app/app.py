@@ -56,7 +56,7 @@ def check_game_state():
             st.rerun()
             break
         else:
-            time.sleep(5)  # sleep for 5 seconds
+            time.sleep(3)  # sleep for 5 seconds
 
 
 def reset_round():
@@ -206,6 +206,7 @@ else:
 st.session_state
 
 # TODO: count score base on time
+
 
 # # Async function to check document value
 # async def check_document():

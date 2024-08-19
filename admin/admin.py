@@ -239,5 +239,5 @@ if st.button(
 
 st.session_state
 
-# TODO: real time update of how many teams and which team has submitted image, which team has sent answers
+# TODO: real time update of how many teams and which team has submitted image, which team has sent answers. without needing to refresh
 # TODO: current score may need to take into account the timing
