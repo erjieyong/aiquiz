@@ -73,9 +73,12 @@ def reset_round():
 
 
 try:
-    st.session_state["round"] = COLLECTION_GAMESTATE.find_one(
+    st.session_state.round = COLLECTION_GAMESTATE.find_one(
         {"round": {"$exists": True}}
     )["round"]
+    st.session_state.game_state = COLLECTION_GAMESTATE.find_one(
+        {"state": {"$exists": True}}
+    )["state"]
 except:
     COLLECTION_GAMESTATE.insert_one({"round": 1})
     COLLECTION_GAMESTATE.insert_one({"state": "image_submission_stage"})
