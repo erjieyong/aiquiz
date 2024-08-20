@@ -79,7 +79,8 @@ try:
 except:
     COLLECTION_GAMESTATE.insert_one({"round": 1})
     COLLECTION_GAMESTATE.insert_one({"state": "image_submission_stage"})
-    st.session_state["round"] = 1
+    st.session_state.round = 1
+    st.session_state.game_state = "image_submission_stage"
 
 if "url" not in st.session_state:
     st.session_state.url = None
