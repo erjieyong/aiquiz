@@ -7,8 +7,6 @@ from pymongo import MongoClient
 import random
 import time
 
-import asyncio
-
 load_dotenv()
 MONGO_CLIENT = MongoClient("mongo:27017")
 DATABASE = MONGO_CLIENT["aiquiz"]
@@ -56,7 +54,7 @@ def check_game_state():
             st.rerun()
             break
         else:
-            time.sleep(3)  # sleep for 5 seconds
+            time.sleep(3)  # sleep for 3 seconds
 
 
 def reset_round():
@@ -167,13 +165,6 @@ else:
         random.Random(1).shuffle(quiz_prompts)
         st.session_state.randomised_quiz_prompts = quiz_prompts
 
-        # st.write(f"Group name: {st.session_state.group}")
-        # if st.session_state.group == "":
-        #     group_name = st.text_input("Group Name:")
-        #     st.session_state.group = group_name
-
-        # st.subheader(f"{st.session_state.group} Round {st.session_state.round}")
-
         col1, col2, col3 = st.columns(3)
         col2.image(st.session_state.quiz["url"])
 
@@ -209,31 +200,5 @@ else:
         reset_round()
         check_game_state()
 
-st.session_state
 
 # TODO: count score base on time
-
-
-# # Async function to check document value
-# async def check_document():
-#     doc = COLLECTION_GAMESTATE.find_one({"state": {"$exists": True}})
-#     return doc["state"]
-
-# # Define an async function to periodically check for updates
-# async def monitor_changes():
-#     current_value = await check_document()
-#     st.session_state.game_state = current_value
-#     # document_value.write(f"Current Value: {current_value}")
-
-#     while True:
-#         await asyncio.sleep(5)  # Delay to avoid overwhelming the database
-#         new_value = await check_document()
-#         if new_value != current_value:
-#             current_value = new_value
-#             st.session_state.game_state = current_value
-#             print(current_value)
-
-#     # document_value.write(f"Updated Value: {current_value}")
-
-# # Run the async function in the background
-# asyncio.run(monitor_changes())
