@@ -72,17 +72,19 @@ def reset_round():
     )["round"]
 
 
-st.session_state.round = COLLECTION_GAMESTATE.find_one({"round": {"$exists": True}})[
-    "round"
-]
+try:
+    st.session_state["round"] = COLLECTION_GAMESTATE.find_one(
+        {"round": {"$exists": True}}
+    )["round"]
+except:
+    COLLECTION_GAMESTATE.insert_one({"round": 1})
+    COLLECTION_GAMESTATE.insert_one({"state": "image_submission_stage"})
+    st.session_state["round"] = 1
 
 if "url" not in st.session_state:
     st.session_state.url = None
     st.session_state.disable_generate = False
     st.session_state.submitted = False
-    st.session_state.game_state = COLLECTION_GAMESTATE.find_one(
-        {"state": {"$exists": True}}
-    )["state"]
     st.session_state.disable_submit_quiz = False
 
 if "group" not in st.session_state:
