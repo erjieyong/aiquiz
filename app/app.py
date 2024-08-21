@@ -104,6 +104,7 @@ else:
     if st.session_state.game_state == "image_submission_stage":
         # User prompt input
         with st.form("my_form"):
+            st.write("Please do not use any offensive words.")
             user_prompt = st.text_input("Enter your prompt:", key="prompt")
             generate = st.form_submit_button(
                 "Generate Image", disabled=st.session_state.disable_generate
@@ -205,11 +206,13 @@ else:
         reset_round()
         check_game_state()
 
-st.session_state
+# st.session_state
 
 # TODO: count score base on time
-# TODO: add disclaimer: no offensive words
-# TODO: for Admin panel I need to be able to check who submitted answers
-# TODO: Set min amount of word so that the prompt is more fun
 # TODO: Fix bug of 3rd round showing 2nd round image
+
+
+# TODO: add disclaimer: no offensive words
+# TODO: Set min amount of word so that the prompt is more fun
+# TODO: for Admin panel I need to be able to check who submitted answers
 # TODO: change to 2xlarge
