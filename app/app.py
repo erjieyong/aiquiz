@@ -167,7 +167,7 @@ else:
 
         col1, col2, col3 = st.columns(3)
         col2.image(st.session_state.quiz["url"])
-
+        start_time = time.time()
         selected_answer = st.radio(
             "Which of the following prompt is the original prompt that was used to generate the image?",
             st.session_state.randomised_quiz_prompts,
@@ -180,9 +180,14 @@ else:
             args=("submit_quiz",),
             disabled=st.session_state.disable_submit_quiz,
         ):
+            runtime = time.time() - start_time
             if selected_answer == st.session_state.quiz["og_prompt"]:
                 st.success("Congratulations! You are correct!")
-                submit_score(st.session_state.round, st.session_state.group, 1)
+                # multiply score by reciprocal runtime
+                print(runtime)
+                submit_score(
+                    st.session_state.round, st.session_state.group, (1 / runtime)
+                )
             else:
                 st.error(
                     f"Wrong! '**{st.session_state.quiz['og_prompt']}**' is the correct answer."
@@ -200,6 +205,7 @@ else:
         reset_round()
         check_game_state()
 
+st.session_state
 
 # TODO: count score base on time
 # TODO: add disclaimer: no offensive words
