@@ -25,6 +25,13 @@ def click_submit(button):
         st.session_state.disable_submit_quiz = True
 
 
+def check_word_len():
+    if len(st.session_state.prompt.split(" ")) < 5:
+        st.session_state.disable_generate = True
+    else:
+        st.session_state.disable_generate = False
+
+
 def update_or_insert_image(round, group, url, prompt):
     """update document if group is in collection, otherwise, insert new document"""
     if COLLECTION_IMAGE_SUBMISSION.find_one({"round": round, "group": group}):
@@ -59,7 +66,7 @@ def check_game_state():
 
 def reset_round():
     st.session_state.url = None
-    st.session_state.disable_generate = False
+    st.session_state.disable_generate = True
     st.session_state.submitted = False
     st.session_state.game_state = COLLECTION_GAMESTATE.find_one(
         {"state": {"$exists": True}}
@@ -85,9 +92,10 @@ except:
 
 if "url" not in st.session_state:
     st.session_state.url = None
-    st.session_state.disable_generate = False
+    st.session_state.disable_generate = True
     st.session_state.submitted = False
     st.session_state.disable_submit_quiz = False
+    st.session_state.start_time = None
 
 if "group" not in st.session_state:
     st.session_state.group = None
@@ -102,13 +110,23 @@ else:
     st.header(f"{st.session_state.group}: Round {st.session_state.round}")
 
     if st.session_state.game_state == "image_submission_stage":
+        if "prompt" not in st.session_state:
+            st.session_state.prompt = None
+
         # User prompt input
-        with st.form("my_form"):
-            st.write("Please do not use any offensive words.")
-            user_prompt = st.text_input("Enter your prompt:", key="prompt")
-            generate = st.form_submit_button(
-                "Generate Image", disabled=st.session_state.disable_generate
-            )
+        st.write(
+            "Please do not use any offensive words. Min 5 words required to generate image."
+        )
+        user_prompt = st.text_input(
+            "Enter your prompt:",
+            key="prompt",
+            on_change=check_word_len,
+        )
+        warning_placeholder = st.empty()
+        generate = st.button(
+            "Generate Image",
+            disabled=st.session_state.disable_generate,
+        )
 
         # Generate button
         if generate:
@@ -168,7 +186,9 @@ else:
 
         col1, col2, col3 = st.columns(3)
         col2.image(st.session_state.quiz["url"])
-        start_time = time.time()
+        if st.session_state.start_time == None:
+            st.session_state.start_time = time.time()
+
         selected_answer = st.radio(
             "Which of the following prompt is the original prompt that was used to generate the image?",
             st.session_state.randomised_quiz_prompts,
@@ -181,13 +201,12 @@ else:
             args=("submit_quiz",),
             disabled=st.session_state.disable_submit_quiz,
         ):
-            runtime = time.time() - start_time
             if selected_answer == st.session_state.quiz["og_prompt"]:
                 st.success("Congratulations! You are correct!")
                 # multiply score by reciprocal runtime
-                print(runtime)
+                runtime = time.time() - st.session_state.start_time
                 submit_score(
-                    st.session_state.round, st.session_state.group, (1 / runtime)
+                    st.session_state.round, st.session_state.group, 1 + (1 / runtime)
                 )
             else:
                 st.error(
@@ -195,11 +214,13 @@ else:
                 )
                 submit_score(st.session_state.round, st.session_state.group, 0)
 
+            st.session_state.start_time = None
             check_game_state()
 
     if st.session_state.game_state == "end_quiz_round_stage":
 
         st.subheader("Leaderboard")
+        st.write("Points are awarded based on correct answer and submission time.")
         df = list(COLLECTION_QUIZ_SUBMISSION.find())
         st.bar_chart(pd.DataFrame(df).groupby(["group"]).sum("score")[["score"]])
 
@@ -210,9 +231,9 @@ else:
 
 # TODO: count score base on time
 # TODO: Fix bug of 3rd round showing 2nd round image
-
-
 # TODO: add disclaimer: no offensive words
 # TODO: Set min amount of word so that the prompt is more fun
+
+
 # TODO: for Admin panel I need to be able to check who submitted answers
 # TODO: change to 2xlarge
