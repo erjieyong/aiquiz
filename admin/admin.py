@@ -29,6 +29,7 @@ if "game_state" not in st.session_state:
         {"state": {"$exists": True}}
     )["state"]
     st.session_state["generation"] = False
+    st.session_state.disable_start_new_round = True
 
 
 def update_gamestate(gamestate):
@@ -214,18 +215,20 @@ df = list(COLLECTION_QUIZ_SUBMISSION.find())
 if df:
     st.bar_chart(pd.DataFrame(df).groupby(["group"]).sum("score")[["score"]])
 
-st.button(
+if st.button(
     "End Quiz Stage",
     on_click=update_gamestate,
     kwargs={"gamestate": "end_quiz_round_stage"},
     use_container_width=True,
-)
+):
+    st.session_state.disable_start_new_round = False
 
 if st.button(
     "Start New Round",
     on_click=update_gamestate,
     kwargs={"gamestate": "image_submission_stage"},
     use_container_width=True,
+    disabled=st.session_state.disable_start_new_round,
 ):
     update_gameround(st.session_state.round + 1)
 
