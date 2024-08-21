@@ -202,3 +202,8 @@ else:
 
 
 # TODO: count score base on time
+# TODO: add disclaimer: no offensive words
+# TODO: for Admin panel I need to be able to check who submitted answers
+# TODO: Set min amount of word so that the prompt is more fun
+# TODO: Fix bug of 3rd round showing 2nd round image
+# TODO: change to 2xlarge
