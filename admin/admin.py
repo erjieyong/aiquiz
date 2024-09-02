@@ -109,7 +109,7 @@ def generate_3_prompts(image, original_prompt):
                 "content": [
                     {
                         "type": "text",
-                        "text": f"""Given this image, write me 3 potential prompts in {len(original_prompt.split(" "))} words each that may be used to generate this image. Do not repeat the original prompt `{original_prompt}`. 
+                        "text": f"""Given the original image generation prompt, '{original_prompt}', write me 3 additional prompts of similar style and tone that may be used to describe this image.
 Return the prompts in a dictionary format as follows:
 {{
     "prompt1":"generated prompt",
