@@ -1,6 +1,6 @@
 import streamlit as st
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import AzureOpenAI
 import os
 import json
 from pymongo import MongoClient
@@ -13,7 +13,12 @@ COLLECTION_IMAGE_SUBMISSION = DATABASE["image_submission"]
 COLLECTION_GAMESTATE = DATABASE["game_state"]
 COLLECTION_QUIZ = DATABASE["quiz"]
 COLLECTION_QUIZ_SUBMISSION = DATABASE["quiz_submission"]
-OPENAI_CLIENT = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+OPENAI_CLIENT = AzureOpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    api_version="2024-07-01-preview",
+    azure_endpoint="https://corra-test.openai.azure.com/",
+)
+MODEL_NAME = "gpt4o"
 
 try:
     st.session_state["round"] = COLLECTION_GAMESTATE.find_one(
@@ -97,7 +102,7 @@ def disable_generation_start_quiz():
 
 def generate_3_prompts(image, original_prompt):
     response = OPENAI_CLIENT.chat.completions.create(
-        model="gpt-4o-mini",
+        model=MODEL_NAME,
         messages=[
             {
                 "role": "user",

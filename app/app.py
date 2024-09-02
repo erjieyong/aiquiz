@@ -1,6 +1,6 @@
 import streamlit as st
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import AzureOpenAI
 import os
 import pandas as pd
 from pymongo import MongoClient
@@ -14,7 +14,12 @@ COLLECTION_IMAGE_SUBMISSION = DATABASE["image_submission"]
 COLLECTION_GAMESTATE = DATABASE["game_state"]
 COLLECTION_QUIZ = DATABASE["quiz"]
 COLLECTION_QUIZ_SUBMISSION = DATABASE["quiz_submission"]
-OPENAI_CLIENT = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+OPENAI_CLIENT = AzureOpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    api_version="2024-07-01-preview",
+    azure_endpoint="https://corra-test.openai.azure.com/",
+)
+MODEL_NAME = "dalle3"
 
 
 def click_submit(button):
@@ -135,9 +140,9 @@ else:
             else:
                 with st.spinner(text="Generating image..."):
                     response = OPENAI_CLIENT.images.generate(
-                        model="dall-e-2",
+                        model=MODEL_NAME,
                         prompt=user_prompt,
-                        size="256x256",
+                        size="1024x1024",
                         quality="standard",
                         n=1,
                     )
