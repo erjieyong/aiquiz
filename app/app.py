@@ -21,6 +21,8 @@ OPENAI_CLIENT = AzureOpenAI(
     azure_endpoint="https://corra-test.openai.azure.com/",
 )
 MODEL_NAME = "dalle3"
+# refresh streamlit app every 3 second if triggered as long as game_state does not change
+TIME_TO_REFRESH = 3
 
 
 def click_submit(button):
@@ -75,7 +77,7 @@ def check_game_state():
             st.rerun()
             break
         else:
-            time.sleep(3)  # sleep for 3 seconds
+            time.sleep(TIME_TO_REFRESH)
 
 
 def reset_round():

@@ -5,6 +5,7 @@ import os
 import json
 from pymongo import MongoClient
 import pandas as pd
+import time
 
 load_dotenv()
 MONGO_CLIENT = MongoClient("mongo:27017")
@@ -20,6 +21,8 @@ OPENAI_CLIENT = AzureOpenAI(
     azure_endpoint="https://corra-test.openai.azure.com/",
 )
 MODEL_NAME = "gpt4o"
+# refresh streamlit app every 2 second for image_submission_stage and quiz_round_stage
+TIME_TO_REFRESH = 2
 
 try:
     st.session_state["round"] = COLLECTION_GAMESTATE.find_one(
@@ -36,6 +39,9 @@ if "game_state" not in st.session_state:
     )["state"]
     st.session_state["generation"] = False
     st.session_state.disable_start_new_round = True
+
+if "all_submissions_received" not in st.session_state:
+    st.session_state.all_submissions_received = False
 
 
 def update_gamestate(gamestate):
@@ -68,7 +74,6 @@ def update_gameround(gameround):
 
 
 def create_quiz(round, group, image, og_prompt, syn_prompt1, syn_prompt2, syn_prompt3):
-    print(group, image)
     if COLLECTION_QUIZ.find_one({"round": round}):
         COLLECTION_QUIZ.update_one(
             {"round": round},
@@ -102,15 +107,16 @@ def disable_generation_start_quiz():
 
 
 def generate_3_prompts(image, original_prompt):
-    response = OPENAI_CLIENT.chat.completions.create(
-        model=MODEL_NAME,
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": f"""Given the original image generation prompt, '{original_prompt}', write me 3 additional prompts of similar style and tone that may be used to describe this image.
+    try:
+        response = OPENAI_CLIENT.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": f"""Given the original image generation prompt, '{original_prompt}', write me 3 additional prompts of similar style and tone that may be used to describe this image.
 Return the prompts in a dictionary format as follows:
 {{
     "prompt1":"generated prompt",
@@ -118,20 +124,25 @@ Return the prompts in a dictionary format as follows:
     "prompt3":"generated prompt",
 }}
 Return only the final JSON dictionary. Do not return any other output descriptions or explanations, only the JSON dictionary.""",
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": image,
                         },
-                    },
-                ],
-            }
-        ],
-        max_tokens=300,
-    )
-    print(response.choices[0].message.content)
-    return json.loads(response.choices[0].message.content)
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": image,
+                            },
+                        },
+                    ],
+                }
+            ],
+            max_tokens=300,
+        )
+        print(response)
+        # print(response.choices[0].message.content)
+        return json.loads(response.choices[0].message.content)
+    except Exception as e:
+        # General exception handling with detailed info
+        print(f"An error occurred: {type(e).__name__} - {e}")
+        return None
 
 
 def reset_everything():
@@ -142,6 +153,20 @@ def reset_everything():
     COLLECTION_QUIZ_SUBMISSION.delete_many({})
     update_gamestate("image_submission_stage")
     update_gameround(1)
+    st.session_state.all_submissions_received = False
+
+
+def check_submissions(percentage):
+    while True:
+        if percentage == 1.0:
+            st.session_state.all_submissions_received = True
+            st.rerun()
+            break
+        else:
+            time.sleep(TIME_TO_REFRESH)  # sleep for 3 seconds
+            current_time = time.strftime("%H:%M:%S")
+            st.write(f"Refreshed on {current_time}")
+            st.rerun()
 
 
 st.title("AI Quiz Admin Panel")
@@ -175,8 +200,14 @@ for group in all_groups:
         image_submission_status[group] = True
     else:
         image_submission_status[group] = False
+if len(all_groups) > 0:
+    image_submission_percentage = sum(image_submission_status.values()) / len(
+        all_groups
+    )
+else:
+    image_submission_percentage = 0.0
 st.write(
-    f"{sum(image_submission_status.values())} out of {len(all_groups)} groups submitted. ({sum(image_submission_status.values())/len(all_groups)*100:.2f}%)"
+    f"{sum(image_submission_status.values())} out of {len(all_groups)} groups submitted. ({image_submission_percentage*100:.2f}%)"
 )
 with st.expander("See Submission Status"):
     st.write(image_submission_status)
@@ -227,6 +258,7 @@ if st.button(
 
         # change game state to quiz stage
         update_gamestate(gamestate="quiz_round_stage")
+        st.session_state.all_submissions_received = False
     else:
         st.warning("Please wait for at least a group to submit their image.")
 
@@ -235,15 +267,22 @@ st.divider()
 st.subheader("SCORE")
 
 df = list(COLLECTION_QUIZ_SUBMISSION.find())
-quiz_submitted_groups = [submission["group"] for submission in df]
+df_current_round = [
+    current for current in df if current["round"] == st.session_state.round
+]
+quiz_submitted_groups = [submission["group"] for submission in df_current_round]
 quiz_submission_status = {}
 for group in all_groups:
     if group in quiz_submitted_groups:
         quiz_submission_status[group] = True
     else:
         quiz_submission_status[group] = False
+if len(all_groups) > 0:
+    quiz_submission_percentage = sum(quiz_submission_status.values()) / len(all_groups)
+else:
+    quiz_submission_percentage = 0.0
 st.write(
-    f"{sum(quiz_submission_status.values())} out of {len(all_groups)} groups submitted. ({sum(quiz_submission_status.values())/len(all_groups)*100:.2f}%)"
+    f"{sum(quiz_submission_status.values())} out of {len(all_groups)} groups submitted. ({quiz_submission_percentage*100:.2f}%)"
 )
 with st.expander("See Quiz Submission Status"):
     st.write(quiz_submission_status)
@@ -267,6 +306,8 @@ if st.button(
     disabled=st.session_state.disable_start_new_round,
 ):
     update_gameround(st.session_state.round + 1)
+    st.session_state.all_submissions_received = False
+    st.rerun()
 
 if st.button(
     "RESET EVERYTHING!",
@@ -278,4 +319,14 @@ if st.button(
 
 st.session_state
 
-# TODO: real time update of how many teams and which team has submitted image, which team has sent answers. without needing to refresh
+# constantly refresh every second if all_submissions not received
+if (
+    st.session_state.game_state == "image_submission_stage"
+    and st.session_state.all_submissions_received == False
+):
+    check_submissions(image_submission_percentage)
+if (
+    st.session_state.game_state == "quiz_round_stage"
+    and st.session_state.all_submissions_received == False
+):
+    check_submissions(quiz_submission_percentage)
