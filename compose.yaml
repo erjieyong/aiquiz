@@ -5,6 +5,8 @@ services:
       dockerfile: admin/dockerfile
     ports:
       - 8502:8502
+    volumes:
+      - ./admin:/app
     depends_on:
       - mongo
 
@@ -14,6 +16,8 @@ services:
       dockerfile: app/dockerfile
     ports:
       - 8501:8501
+    volumes:
+      - ./app:/app
     depends_on:
       - mongo
       - admin

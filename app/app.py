@@ -12,6 +12,7 @@ MONGO_CLIENT = MongoClient("mongo:27017")
 DATABASE = MONGO_CLIENT["aiquiz"]
 COLLECTION_IMAGE_SUBMISSION = DATABASE["image_submission"]
 COLLECTION_GAMESTATE = DATABASE["game_state"]
+COLLECTION_GROUPS = DATABASE["groups"]
 COLLECTION_QUIZ = DATABASE["quiz"]
 COLLECTION_QUIZ_SUBMISSION = DATABASE["quiz_submission"]
 OPENAI_CLIENT = AzureOpenAI(
@@ -35,6 +36,14 @@ def check_word_len():
         st.session_state.disable_generate = True
     else:
         st.session_state.disable_generate = False
+
+
+def update_or_insert_group(group):
+    """do nothing if group already in collection, otherwise, insert new group"""
+    if COLLECTION_GROUPS.find_one({"group": group}):
+        pass
+    else:
+        COLLECTION_GROUPS.insert_one({"group": group})
 
 
 def update_or_insert_image(round, group, url, prompt):
@@ -110,6 +119,7 @@ if st.session_state.group == None:
     groupname = st.text_input("Group Name:")
     if groupname:
         st.session_state.group = groupname
+        update_or_insert_group(groupname)
         st.rerun()
 else:
     st.header(f"{st.session_state.group}: Round {st.session_state.round}")

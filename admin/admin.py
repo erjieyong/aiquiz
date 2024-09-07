@@ -11,6 +11,7 @@ MONGO_CLIENT = MongoClient("mongo:27017")
 DATABASE = MONGO_CLIENT["aiquiz"]
 COLLECTION_IMAGE_SUBMISSION = DATABASE["image_submission"]
 COLLECTION_GAMESTATE = DATABASE["game_state"]
+COLLECTION_GROUPS = DATABASE["groups"]
 COLLECTION_QUIZ = DATABASE["quiz"]
 COLLECTION_QUIZ_SUBMISSION = DATABASE["quiz_submission"]
 OPENAI_CLIENT = AzureOpenAI(
@@ -136,6 +137,7 @@ Return only the final JSON dictionary. Do not return any other output descriptio
 def reset_everything():
     COLLECTION_IMAGE_SUBMISSION.delete_many({})
     COLLECTION_GAMESTATE.delete_many({})
+    COLLECTION_GROUPS.delete_many({})
     COLLECTION_QUIZ.delete_many({})
     COLLECTION_QUIZ_SUBMISSION.delete_many({})
     update_gamestate("image_submission_stage")
@@ -160,11 +162,26 @@ st.button(
 st.divider()
 
 st.subheader("All Submissions")
-col1, col2, col3 = st.columns(3)
 
 all_submissions = list(
     COLLECTION_IMAGE_SUBMISSION.find({"round": st.session_state.round})
 )
+
+all_groups = [item["group"] for item in list(COLLECTION_GROUPS.find())]
+image_submitted_groups = [submission["group"] for submission in all_submissions]
+image_submission_status = {}
+for group in all_groups:
+    if group in image_submitted_groups:
+        image_submission_status[group] = True
+    else:
+        image_submission_status[group] = False
+st.write(
+    f"{sum(image_submission_status.values())} out of {len(all_groups)} groups submitted. ({sum(image_submission_status.values())/len(all_groups)*100:.2f}%)"
+)
+with st.expander("See Submission Status"):
+    st.write(image_submission_status)
+
+col1, col2, col3 = st.columns(3)
 
 for id, submission in enumerate(all_submissions):
     if (id + 1) % 3 == 1:
@@ -216,7 +233,21 @@ if st.button(
 st.divider()
 
 st.subheader("SCORE")
+
 df = list(COLLECTION_QUIZ_SUBMISSION.find())
+quiz_submitted_groups = [submission["group"] for submission in df]
+quiz_submission_status = {}
+for group in all_groups:
+    if group in quiz_submitted_groups:
+        quiz_submission_status[group] = True
+    else:
+        quiz_submission_status[group] = False
+st.write(
+    f"{sum(quiz_submission_status.values())} out of {len(all_groups)} groups submitted. ({sum(quiz_submission_status.values())/len(all_groups)*100:.2f}%)"
+)
+with st.expander("See Quiz Submission Status"):
+    st.write(quiz_submission_status)
+
 if df:
     st.bar_chart(pd.DataFrame(df).groupby(["group"]).sum("score")[["score"]])
 
@@ -248,4 +279,3 @@ if st.button(
 st.session_state
 
 # TODO: real time update of how many teams and which team has submitted image, which team has sent answers. without needing to refresh
-# TODO: current score may need to take into account the timing
