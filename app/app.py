@@ -7,7 +7,6 @@ from pymongo import MongoClient
 import random
 import time
 
-load_dotenv()
 MONGO_CLIENT = MongoClient("mongo:27017")
 DATABASE = MONGO_CLIENT["aiquiz"]
 COLLECTION_IMAGE_SUBMISSION = DATABASE["image_submission"]

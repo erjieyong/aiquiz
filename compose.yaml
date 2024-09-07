@@ -9,6 +9,8 @@ services:
       - ./admin:/app
     depends_on:
       - mongo
+    environment:
+      - OPENAI_API_KEY
 
   app:
     build:
@@ -21,6 +23,8 @@ services:
     depends_on:
       - mongo
       - admin
+    environment:
+      - OPENAI_API_KEY
 
   mongo:
     image: mongo
