@@ -33,13 +33,6 @@ def click_submit(button):
         st.session_state.disable_submit_quiz = True
 
 
-def check_word_len():
-    if len(st.session_state.prompt.split(" ")) < 5:
-        st.session_state.disable_generate = True
-    else:
-        st.session_state.disable_generate = False
-
-
 def update_or_insert_group(group):
     """do nothing if group already in collection, otherwise, insert new group"""
     if COLLECTION_GROUPS.find_one({"group": group}):
@@ -82,7 +75,7 @@ def check_game_state():
 
 def reset_round():
     st.session_state.url = None
-    st.session_state.disable_generate = True
+    st.session_state.disable_generate = False
     st.session_state.submitted = False
     st.session_state.game_state = COLLECTION_GAMESTATE.find_one(
         {"state": {"$exists": True}}
@@ -108,7 +101,7 @@ except:
 
 if "url" not in st.session_state:
     st.session_state.url = None
-    st.session_state.disable_generate = True
+    st.session_state.disable_generate = False
     st.session_state.submitted = False
     st.session_state.disable_submit_quiz = False
     st.session_state.start_time = None
@@ -117,6 +110,7 @@ if "group" not in st.session_state:
     st.session_state.group = None
 
 st.title("AI Quiz")
+st.caption("Developed by Data Science, ITCD")
 if st.session_state.group == None:
     groupname = st.text_input("Group Name:")
     if groupname:
@@ -130,25 +124,26 @@ else:
         if "prompt" not in st.session_state:
             st.session_state.prompt = None
 
-        # User prompt input
-        st.write(
-            "Please do not use any offensive words. Min 5 words required to generate image."
-        )
-        user_prompt = st.text_input(
-            "Enter your prompt:",
-            key="prompt",
-            on_change=check_word_len,
-        )
-        warning_placeholder = st.empty()
-        generate = st.button(
-            "Generate Image",
-            disabled=st.session_state.disable_generate,
-        )
+        with st.form(key="image_submission_form"):
+            st.write(
+                "Please do not use any offensive words. Min 5 words required to generate image."
+            )
+            user_prompt = st.text_area(
+                "Enter your prompt:",
+                key="prompt",
+            )
+            generate = st.form_submit_button(
+                "Generate Image",
+                disabled=st.session_state.disable_generate,
+            )
 
         # Generate button
         if generate:
+            print("in generate")
             if not user_prompt:
                 st.warning("Please enter a prompt.")
+            elif len(st.session_state.prompt.split(" ")) < 5:
+                st.warning("Please enter at least 5 words.")
             else:
                 with st.spinner(text="Generating image..."):
                     response = OPENAI_CLIENT.images.generate(
@@ -243,7 +238,3 @@ else:
 
         reset_round()
         check_game_state()
-
-# st.session_state
-
-# TODO: for Admin panel I need to be able to check who submitted answers
